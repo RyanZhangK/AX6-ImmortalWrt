@@ -1,0 +1,33 @@
+# Redmi AX6 (redmi_ax6) ImmortalWrt 最小种子配置
+# 用法： cp docs/ax6-config.seed .config && make defconfig && make -j$(nproc)
+# 说明：
+#  - 目标为 qualcommax/ipq807x 的 redmi_ax6（扩容 merged 分区布局，rootfs 0x880000 起 118MB）
+#  - 包含任务要求的 10 个插件（依赖由 make defconfig 自动补齐）
+#  - 未启用 Turbo ACC 的 shortcut-fe/BBR 等可选内核模块（需自定义时在 menuconfig 中勾选）
+
+# ---- Target: Redmi AX6 (qualcommax / ipq807x) ----
+CONFIG_TARGET_qualcommax=y
+CONFIG_TARGET_qualcommax_ipq807x=y
+CONFIG_TARGET_qualcommax_ipq807x_DEVICE_redmi_ax6=y
+
+# ---- LuCI 基础 ----
+CONFIG_PACKAGE_luci=y
+CONFIG_LUCI_LANG_zh_Hans=y              # LuCI 中文（自动启用全部 luci-i18n-*-zh-cn）
+
+# ---- 任务 10 插件 ----
+CONFIG_PACKAGE_ua3f=y                      # UA3F（UA 改写代理）
+CONFIG_PACKAGE_luci-app-openclash=y        # OpenClash
+CONFIG_PACKAGE_minieap=y                   # 锐捷认证客户端
+CONFIG_PACKAGE_luci-proto-minieap=y        # 锐捷认证 LuCI 协议支持
+CONFIG_PACKAGE_luci-theme-argon=y          # Argon 主题
+CONFIG_PACKAGE_luci-app-argon-config=y     # Argon 主题配置
+CONFIG_PACKAGE_luci-app-upnp=y             # UPnP（miniupnpd 自动选中）
+CONFIG_PACKAGE_luci-app-turboacc=y         # Turbo ACC（硬件加速开关）
+# CONFIG_PACKAGE_luci-app-turboacc_INCLUDE_SHORTCUT_FE_DRV is not set
+#   （关闭 Shortcut-FE ECM：kmod-shortcut-fe-drv 仅存在于 LEDE/coolsnowwolf fork，
+#     上游 ImmortalWrt feeds 无此包，勾选会导致依赖不可满足；BBR_CCA/NFT_FULLCONE 保留）
+CONFIG_PACKAGE_luci-app-ddns=y             # 动态 DNS（ddns-scripts 自动选中）
+CONFIG_PACKAGE_luci-app-adguardhome=y      # AdGuard Home（adguardhome 自动选中）
+CONFIG_PACKAGE_luci-app-watchcat=y         # Watchcat 断网自动重启（watchcat 自动选中）
+CONFIG_PACKAGE_luci-app-docker=y           # Docker 管理
+CONFIG_PACKAGE_luci-i18n-docker-zh-cn=y    # Docker 中文语言包

@@ -1,0 +1,139 @@
+# ============================================================================
+# AX6 ImmortalWrt 固件自动编译 + Release
+#   触发方式：
+#     1. 推送 TAG（v*，如 v1.0.0）：自动编译并以该 TAG 发布 Release
+#     2. 手动触发（workflow_dispatch）：自动编译并生成 manual-<时间戳> 的 Release
+#   编译配置：docs/ax6-config.seed（redmi_ax6 扩容 merged 分区布局 + 10 插件）
+# ============================================================================
+name: Build AX6 Firmware
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write          # 允许创建 GitHub Release
+
+jobs:
+  build:
+    name: 编译 AX6 固件
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      # ---- 清理 runner 磁盘（OpenWrt 编译约需 25GB，官方 ubuntu 镜像有大量可清理空间）----
+      - name: 清理磁盘空间
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af || true
+          sudo rm -rf /usr/share/swift || true
+          df -h /
+
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装编译依赖（官方 README 清单）
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+            g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+            libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+            libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp \
+            ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
+            python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
+            upx-ucl unzip wget xmlto xxd zlib1g-dev zstd
+
+      - name: 缓存 ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ github.ref_name }}-
+            ccache-
+
+      # ---- feeds 与配置 ----
+      - name: feeds update / install
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 生成配置（种子 → defconfig，启用 ccache）
+        run: |
+          cp docs/ax6-config.seed .config
+          echo 'CONFIG_CCACHE=y' >> .config
+          make defconfig
+          grep -E 'CONFIG_TARGET_qualcommax_ipq807x_DEVICE_redmi_ax6=|CONFIG_PACKAGE_luci-app-openclash=' .config
+
+      # ---- 编译（失败不中断任务，便于收集日志）----
+      - name: 编译固件
+        id: build
+        run: |
+          set +e
+          make -j$(nproc) V=s 2>&1 | tee build.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: 确定发布 TAG（TAG 触发用原 TAG；手动触发生成 manual-<时间戳>）
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "name=AX6 ImmortalWrt ${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=manual-$(date +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+            echo "name=AX6 ImmortalWrt 手动构建 $(date +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---- 产物 ----
+      - name: 收集产物到工作区
+        run: |
+          set +e
+          cp -a bin/targets/*/*/*.bin bin/targets/*/*/*.ubi bin/targets/*/*/*.itb \
+                 bin/targets/*/*/*.manifest bin/targets/*/*/sha256sums \
+                 bin/targets/*/*/config.buildinfo . 2>/dev/null
+          set -e
+          ls -lh *.bin *.ubi *.itb *.manifest sha256sums config.buildinfo 2>/dev/null || true
+          echo "== 编译结果: rc=${{ steps.build.outputs.rc }} =="
+
+      - name: 上传产物（Artifacts，失败也上传日志）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ax6-firmware-${{ github.ref_name }}
+          path: |
+            *.bin
+            *.ubi
+            *.itb
+            *.manifest
+            sha256sums
+            config.buildinfo
+            build.log
+          if-no-files-found: warn
+
+      - name: 发布 Release（仅编译成功时）
+        if: steps.build.outputs.rc == '0'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.name }}
+          body: |
+            ## Redmi AX6 ImmortalWrt 固件（扩容 merged 分区布局）
+            - rootfs 扩容至 118MB（rootfs 0x880000 起），需**不死 uboot** 引导
+            - 插件：UA3F / OpenClash / minieap(锐捷) / Argon / UPnP / Turbo ACC / DDNS / AdGuardHome / Watchcat / Docker(中文)
+            - 刷写：`sysupgrade.bin` 直接升级；`factory.ubi` 首次刷入；`initramfs` 用于救砖/不死uboot
+            - 编译配置见仓库 `docs/ax6-config.seed`
+          files: |
+            *.bin
+            *.ubi
+            *.itb
+            *.manifest
+            sha256sums
+            config.buildinfo
+            build.log
+          fail_on_unmatched_files: false
