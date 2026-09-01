@@ -170,19 +170,19 @@
 				};
 			};
 
-			partition@880000 {
+			bdata: partition@880000 {
 				label = "bdata";
 				reg = <0x880000 0x80000>;
 			};
 
-			partition@900000 {
+			pstore: partition@900000 {
 				/* This is crash + crash_syslog parts combined */
 				label = "pstore";
 				reg = <0x900000 0x100000>;
 			};
 
 			/* Make the first rootfs a dedicated ubi partition for kernel */
-			partition@a00000 {
+			ubi_kernel: partition@a00000 {
 				label = "ubi_kernel";
 				reg = <0xa00000 0x23c0000>;
 			};

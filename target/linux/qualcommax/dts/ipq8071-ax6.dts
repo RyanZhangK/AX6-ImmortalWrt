@@ -9,6 +9,10 @@
 	model = "Redmi AX6";
 	compatible = "redmi,ax6", "qcom,ipq8074";
 
+	chosen {
+		bootargs-append = " root=/dev/ubiblock0_1";
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -34,11 +38,25 @@
 	};
 };
 
-/* AX6 can both have NAND of 256MiB or 128MiB.
- * To be on the safe side, assume 128MiB of NAND.
+/* AX6 with merged partition layout (不死 uboot):
+ * bdata, pstore, and ubi_kernel are removed.
+ * rootfs starts at 0x880000 and extends to the end of 128MiB NAND.
+ * UBI layout: vol0=kernel, vol1=rootfs(squashfs), vol2=rootfs_data(ubifs)
  */
+&bdata {
+	status = "disabled";
+};
+
+&pstore {
+	status = "disabled";
+};
+
+&ubi_kernel {
+	status = "disabled";
+};
+
 &rootfs {
-	reg = <0x2dc0000 0x5220000>;
+	reg = <0x880000 0x7600000>;
 };
 
 &wifi {
