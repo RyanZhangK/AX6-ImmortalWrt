@@ -1,0 +1,22 @@
+# ============================================================
+# luci-app-campnet —— 校园网认证与多播均衡 · 本地配置样例
+#
+# 使用方法:
+#   首次使用:  cp .config.example .config   (或运行 scripts/gen-config.sh)
+#   .config 已被 .gitignore 忽略，帐密不会进入 Git 仓库。
+#   修改 .config 后执行:
+#       ./scripts/gen-config.sh apply    # 同步为 root/etc/campnet/.config.default
+#   重新打包后刷入设备即可让默认值生效。
+#
+# 注意: 生产部署请务必通过 LuCI 界面 / uci 覆盖默认帐密，
+#       不要把真实密码留在默认配置文件里。
+# ============================================================
+
+# ---- 默认账号（学号）----
+CAMP_DEFAULT_USERNAME="202524104131"
+
+# ---- 默认密码 ----
+CAMP_DEFAULT_PASSWORD="240414"
+
+# ---- 认证网关（BRAS/Portal 网关，用于验证与登录）----
+CAMP_GATEWAY="10.0.1.51"

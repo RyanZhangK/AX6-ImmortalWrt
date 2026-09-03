@@ -1,0 +1,31 @@
+{
+	"luci-app-campnet": {
+		"description": "Grant UCI and RPC access for luci-app-campnet (campus auth + multi-WAN)",
+		"read": {
+			"ubus": {
+				"luci.campnet": [
+					"getStatus",
+					"getLog",
+					"test"
+				]
+			},
+			"uci": [
+				"campnet"
+			]
+		},
+		"write": {
+			"uci": [
+				"campnet"
+			],
+			"ubus": {
+				"luci.campnet": [
+					"auth",
+					"setSecret",
+					"dialSetup",
+					"dialTeardown",
+					"setService"
+				]
+			}
+		}
+	}
+}

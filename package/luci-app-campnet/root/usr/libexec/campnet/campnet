@@ -1,0 +1,128 @@
+#!/bin/sh
+# ============================================================
+# campnet —— 校园网认证 + 多播均衡 命令行入口
+# 用法:
+#   campnet auth [all|<账号>] [--force]    立即登录（不指定=all）
+#   campnet status [-j]                     状态（-j 输出 JSON）
+#   campnet dial {setup|teardown|status}    多播线路编排
+#   campnet log [行数]                       最近日志（默认 120 行）
+#   campnet secret show [账号]              查看已配置账号(脱敏)
+#   campnet secret set <用户名> [密码] [账号] 保存/修改帐密（写入 /etc/campnet/.config）
+#   campnet test [账号]                     连通性自检
+#   campnet {enable|disable|start|stop|restart|status-service}  服务控制
+# ============================================================
+
+CAMP_LIB=/usr/libexec/campnet/lib.sh
+[ -f "$CAMP_LIB" ] || CAMP_LIB="$(dirname "$0")/lib.sh"
+. "$CAMP_LIB" || { echo "campnet: 无法加载 $CAMP_LIB" >&2; exit 1; }
+. "$(dirname "$0")/ruijie.sh"
+. "$(dirname "$0")/eportal.sh"
+
+usage() {
+	sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+cmd_auth() {
+	local target="${1:-all}" force="${2:-}"
+	# 允许 campnet auth --force（等价 all）
+	[ "$target" = "--force" ] && { target="all"; force="--force"; }
+	load_settings
+	[ "$S_ENABLED" = "1" ] || { log WARN "插件已停用（uci campnet.settings.enabled=0）"; }
+	if [ "$target" = "all" ]; then
+		local ids rc=0 acc
+		ids=$(camp_account_ids)
+		[ -n "$ids" ] || { echo "没有配置任何账号（uci campnet.account.*）"; return 1; }
+		for acc in $ids; do
+			run_login "$acc" "$force" || rc=1
+		done
+		return $rc
+	fi
+	run_login "$target" "$force"
+}
+
+cmd_status() {
+	. "$(dirname "$0")/status.sh"
+	if [ "$1" = "-j" ]; then
+		json_status
+	else
+		text_status
+	fi
+}
+
+cmd_log() {
+	local n="${1:-120}"
+	case "$n" in ''|*[!0-9]*) n=120 ;; esac
+	[ -f "$CAMP_LOG" ] || { echo "暂无日志（$CAMP_LOG）"; return 0; }
+	tail -n "$n" "$CAMP_LOG"
+}
+
+cmd_secret_show() {
+	secret_seed
+	local acc="${1:-main}"
+	if secret_read "$acc"; then
+		echo "账号[$acc]: 用户名=$(printf '%s' "$USERNAME" | sed 's/./*/g') (已配置)"
+		echo "  提示: campnet secret set <用户名> <密码> [$acc]"
+	else
+		echo "账号[$acc]: 未配置帐密（/etc/campnet/.config）"
+	fi
+}
+
+cmd_secret_set() {
+	local acc="${3:-main}" user="$1" pass="$2"
+	[ -n "$user" ] || { echo "用法: campnet secret set <用户名> [密码] [账号]" >&2; return 1; }
+	if [ -z "$pass" ]; then
+		printf '请输入 %s 的密码: ' "$acc"
+		stty -echo 2>/dev/null
+		IFS= read -r pass
+		stty echo 2>/dev/null
+		printf '\n'
+	fi
+	secret_write "$acc" "$user" "$pass" || { echo "写入失败" >&2; return 1; }
+	chmod 600 "$CAMP_SECRET" 2>/dev/null
+	echo "账号[$acc] 帐密已保存到 $CAMP_SECRET (0600)"
+}
+
+cmd_test() {
+	local acc="${1:-main}" iface dev
+	load_settings
+	secret_read "$acc" && echo "帐密: 已配置" || echo "帐密: 未配置（缺省请运行 campnet secret set）"
+	iface=$(acct_iface "$acc"); dev=$(iface_to_dev "$iface")
+	echo "接口: $iface / $dev"
+	ip=$(dev_ip "$dev")
+	echo "IP  : ${ip:-无}"
+	echo "网关: $S_GATEWAY (模式: $S_AUTH_MODE)"
+	if dev_has_ip "$dev"; then
+		echo "在线探测: $(probe_status "$dev")"
+	fi
+	echo "日志: $CAMP_LOG"
+}
+
+cmd_service() {
+	local act="$1"
+	[ -x /etc/init.d/campnet ] || { echo "缺少 /etc/init.d/campnet" >&2; return 1; }
+	case "$act" in
+		enable|disable|start|stop|restart|reload)
+			/etc/init.d/campnet "$act"
+			;;
+		*) echo "用法: campnet service {enable|disable|start|stop|restart}" >&2; return 1 ;;
+	esac
+}
+
+case "${1:-}" in
+	auth) shift; cmd_auth "$@" ;;
+	status) shift; cmd_status "$@" ;;
+	dial) shift; exec "$(dirname "$0")/dial.sh" "$@" ;;
+	log) shift; cmd_log "$@" ;;
+	secret)
+		shift
+		case "${1:-show}" in
+			show) cmd_secret_show "$2" ;;
+			set) shift; cmd_secret_set "$@" ;;
+			*) echo "用法: campnet secret {show [账号] | set <用户> [密码] [账号]}" >&2; exit 1 ;;
+		esac
+		;;
+	test) shift; cmd_test "$@" ;;
+	enable|disable|start|stop|restart|reload) cmd_service "$1" ;;
+	-h|--help|help) usage ;;
+	*) usage >&2; exit 1 ;;
+esac

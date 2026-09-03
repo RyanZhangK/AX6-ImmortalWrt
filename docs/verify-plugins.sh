@@ -6,9 +6,8 @@ cd "$(dirname "$0")" || exit 1
 plugins=(
   package/UA3F/openwrt/Makefile
   package/turboacc/luci-app-turboacc/Makefile
+  package/luci-app-campnet/Makefile
   package/feeds/luci/applications/luci-app-openclash/Makefile
-  package/feeds/packages/net/minieap/Makefile
-  package/feeds/luci/protocols/luci-proto-minieap/Makefile
   package/feeds/luci/themes/luci-theme-argon/Makefile
   package/feeds/luci/applications/luci-app-argon-config/Makefile
   package/feeds/luci/applications/luci-app-upnp/Makefile
@@ -50,7 +49,7 @@ done
 echo "--- scan filelist (find+grep, as include/scan.mk does) ---"
 find -L package -mindepth 1 -maxdepth 5 -name Makefile \
   | xargs grep -aHE 'call (Build/DefaultTargets|BuildPackage|KernelPackage)' 2>/dev/null \
-  | grep -cE 'package/(UA3F/openwrt|turboacc/luci-app-turboacc|feeds/luci/applications/luci-app-openclash|feeds/luci/applications/luci-app-upnp|feeds/luci/applications/luci-app-ddns|feeds/luci/applications/luci-app-watchcat|feeds/luci/applications/luci-app-docker|feeds/luci/applications/luci-app-adguardhome|feeds/luci/applications/luci-app-argon-config|feeds/luci/themes/luci-theme-argon|feeds/luci/protocols/luci-proto-minieap|feeds/packages/net/minieap)'
+  | grep -cE 'package/(UA3F/openwrt|turboacc/luci-app-turboacc|feeds/luci/applications/luci-app-openclash|feeds/luci/applications/luci-app-upnp|feeds/luci/applications/luci-app-ddns|feeds/luci/applications/luci-app-watchcat|feeds/luci/applications/luci-app-docker|feeds/luci/applications/luci-app-adguardhome|feeds/luci/applications/luci-app-argon-config|feeds/luci/themes/luci-theme-argon|luci-app-campnet)'
 
 echo "--- luci-i18n-docker-zh-cn: generated from po dir ---"
 ls package/feeds/luci/applications/luci-app-docker/po/ 2>/dev/null

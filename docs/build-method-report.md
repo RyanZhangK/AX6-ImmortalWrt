@@ -210,7 +210,7 @@ make -j$(nproc)
 |---|---|---|
 | UA3F（UA 改写代理） | `package/UA3F`（openwrt 子目录） | github.com/SunBK201/UA3F @ `23923d4`（2026-08-02），解析版本 3.6.0-r1 |
 | OpenClash | `package/feeds/luci/applications/luci-app-openclash` | ImmortalWrt luci feed（= vernesong 0.47.156，2026-08-10） |
-| 锐捷上网认证（minieap） | `package/feeds/packages/net/minieap` + `package/feeds/luci/protocols/luci-proto-minieap` | ImmortalWrt feeds（minieap 0.93，含 LuCI 协议支持） |
+| 校园网自动认证+多账号多播均衡（campnet） | `package/luci-app-campnet`（仓库内镜像） | 自研（WTFPL，网关 10.0.1.51，ruijie/eportal/auto 三模式）；v0.4.0 起取代 minieap，见文末“后续更新” |
 | Argon 主题 | `package/feeds/luci/themes/luci-theme-argon` | ImmortalWrt luci feed（v2.4.7，2026-08-24，与 jerrykuku 上游同步） |
 | Argon 配置插件（配套） | `package/feeds/luci/applications/luci-app-argon-config` | ImmortalWrt luci feed |
 | UPnP | `package/feeds/luci/applications/luci-app-upnp` + `package/feeds/packages/net/miniupnpd` | ImmortalWrt feeds |
@@ -266,3 +266,14 @@ make -j$(nproc)
 ---
 
 *本报告由任务 t-mth7yz2l-mfh6kq 执行会话产出；全程未启动固件编译、未操作项目目录之外的文件。*
+
+---
+
+### 后续更新（tag v0.4.0，2026-09-03）
+
+- **移除 minieap（锐捷 802.1x）支持**：`docs/ax6-config.seed` 不再启用
+  `CONFIG_PACKAGE_minieap` / `CONFIG_PACKAGE_luci-proto-minieap`（.config 已重新 defconfig 固化）。
+- **接入校园网自动认证插件 `luci-app-campnet`**：源码镜像至 `package/luci-app-campnet`
+  （自研，WTFPL；LuCI2 JS + shell 后端；网关 10.0.1.51，支持 ruijie(webauth.do)/eportal/auto
+  三模式；每账号 macvlan 独立通道 + mwan3 均衡实现多账号带宽倍增；帐密存 /etc/campnet/.config）。
+  上方插件清单中 minieap 行由本插件取代，其余插件不变。

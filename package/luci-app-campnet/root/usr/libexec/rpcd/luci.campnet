@@ -1,0 +1,127 @@
+#!/bin/sh
+# ============================================================
+# luci.campnet —— rpcd exec 插件（ubus 对象 luci.campnet）
+# LuCI JS 前端通过本对象调用后端动作/状态。
+# 协议: rpcd 以 `luci.campnet list` 获取方法签名；
+#       `luci.campnet call <method>` 时请求 JSON 从 stdin 读入。
+# 输出只允许 JSON（全部经 json_dump）。
+# 参考实现: luci-app-pbr / luci-app-https-dns-proxy 的 rpcd 插件。
+# ============================================================
+
+. /usr/share/libubox/jshn.sh 2>/dev/null || { echo '{"error":"jshn missing"}'; exit 1; }
+
+CAMP=/usr/libexec/campnet/campnet
+CAMP_LOG=/var/log/campnet/campnet.log
+
+# 执行 CLI 并返回 {ok, msg}
+run_cli() {
+	json_init
+	if "$@" >/dev/null 2>&1; then
+		json_add_boolean ok 1
+		json_add_string msg "ok"
+	else
+		json_add_boolean ok 0
+		json_add_string msg "failed (see /var/log/campnet/campnet.log)"
+	fi
+	json_dump
+}
+
+case "$1" in
+	list)
+		json_init
+		json_add_object "getStatus"
+		json_close_object
+		json_add_object "getLog"
+			json_add_string "lines" "string"
+		json_close_object
+		json_add_object "auth"
+			json_add_string "account" "string"
+		json_close_object
+		json_add_object "test"
+			json_add_string "account" "string"
+		json_close_object
+		json_add_object "setSecret"
+			json_add_string "account" "string"
+			json_add_string "username" "string"
+			json_add_string "password" "string"
+		json_close_object
+		json_add_object "dialSetup"
+		json_close_object
+		json_add_object "dialTeardown"
+		json_close_object
+		json_add_object "setService"
+			json_add_string "action" "string"
+		json_close_object
+		json_dump
+		;;
+	call)
+		case "$2" in
+			getStatus)
+				read -r input || input="{}"
+				"$CAMP" status -j 2>/dev/null
+				;;
+			getLog)
+				read -r input; [ -n "$input" ] && json_load "$input" 2>/dev/null
+				json_get_var lines lines; json_cleanup 2>/dev/null
+				lines=${lines:-120}
+				json_init
+				json_add_string "log" "$(tail -n "$lines" "$CAMP_LOG" 2>/dev/null)"
+				json_dump
+				;;
+			auth)
+				read -r input; [ -n "$input" ] && json_load "$input" 2>/dev/null
+				json_get_var account account; json_cleanup 2>/dev/null
+				[ -n "$account" ] || account=all
+				run_cli "$CAMP" auth "$account" --force
+				;;
+			test)
+				read -r input; [ -n "$input" ] && json_load "$input" 2>/dev/null
+				json_get_var account account; json_cleanup 2>/dev/null
+				[ -n "$account" ] || account=main
+				run_cli "$CAMP" test "$account"
+				;;
+			setSecret)
+				read -r input; [ -n "$input" ] && json_load "$input" 2>/dev/null
+				json_get_var account account
+				json_get_var username username
+				json_get_var password password
+				json_cleanup 2>/dev/null
+				[ -n "$account" ] || account=main
+				if [ -n "$username" ] && [ -n "$password" ]; then
+					run_cli "$CAMP" secret set "$username" "$password" "$account"
+				else
+					json_init
+					json_add_boolean ok 0
+					json_add_string msg "username/password 不能为空"
+					json_dump
+				fi
+				;;
+			dialSetup)
+				run_cli "$CAMP" dial setup
+				;;
+			dialTeardown)
+				run_cli "$CAMP" dial teardown
+				;;
+			setService)
+				read -r input; [ -n "$input" ] && json_load "$input" 2>/dev/null
+				json_get_var action action; json_cleanup 2>/dev/null
+				case "$action" in
+					enable|disable|start|stop|restart) run_cli /etc/init.d/campnet "$action" ;;
+					*) json_init; json_add_boolean ok 0; json_add_string msg "bad action"; json_dump ;;
+				esac
+				;;
+			*)
+				json_init
+				json_add_boolean ok 0
+				json_add_string msg "unknown method"
+				json_dump
+				;;
+		esac
+		;;
+	*)
+		json_init
+		json_add_boolean ok 0
+		json_add_string msg "usage: luci.campnet {list|call <method>}"
+		json_dump
+		;;
+esac

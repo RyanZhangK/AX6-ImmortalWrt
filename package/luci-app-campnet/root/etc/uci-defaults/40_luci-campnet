@@ -1,0 +1,45 @@
+#!/bin/sh
+# ============================================================
+# 40_luci-campnet —— 首启初始化（镜像首次启动 / sysupgrade -n / reset）
+# 1) 种子化帐密文件 /etc/campnet/.config (0600)
+# 2) 确保默认 uci 配置存在（缺省由包携带；缺失时用内置兜底重建）
+# 3) 开机自启服务
+# 注意：uci-defaults 仅在镜像首启执行；opkg install 路径由
+#       Makefile 的 postinst（enable+start）负责。
+# ============================================================
+
+CAMP_LIB=/usr/libexec/campnet/lib.sh
+[ -f "$CAMP_LIB" ] || exit 0
+. "$CAMP_LIB" 2>/dev/null || exit 0
+
+# 1) 帐密
+secret_seed || {
+	mkdir -p /etc/campnet
+	printf '[default]\nusername=202524104131\npassword=240414\n' > /etc/campnet/.config
+	chmod 600 /etc/campnet/.config
+}
+
+# 2) uci 配置兜底（正常由包安装的 root/etc/config/campnet 提供）
+if [ ! -s /etc/config/campnet ]; then
+	uci -q <<-EOF
+		set campnet.settings=settings
+		set campnet.settings.auth_mode=ruijie
+		set campnet.settings.gateway=10.0.1.51
+		set campnet.settings.enabled=1
+		set campnet.settings.check_interval=120
+		set campnet.settings.max_retry=3
+		set campnet.settings.retry_delay=5
+		set campnet.settings.uplink=auto
+		set campnet.settings.dial_on_start=1
+		set campnet.main=account
+		set campnet.main.enabled=1
+		set campnet.main.iface=wan
+		set campnet.main.create_vlan=0
+		commit campnet
+	EOF
+fi
+
+# 3) 自启
+[ -x /etc/init.d/campnet ] && /etc/init.d/campnet enable 2>/dev/null
+
+exit 0

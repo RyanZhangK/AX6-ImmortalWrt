@@ -1,0 +1,7 @@
+# campnet 默认帐密模板（打包进固件/镜像，首启种子化到 /etc/campnet/.config）
+# 本模板按任务要求携带默认 学号/密码；真机部署请务必通过 LuCI/CLI 覆盖。
+# 运行时实际生效文件为 /etc/campnet/.config（0600），不受 opkg 升级覆盖。
+# 注意：本文件仅存 [default]=主账号(main)；附加账号请用 LuCI「帐密」区写入 [account:<id>]。
+[default]
+username=202524104131
+password=240414

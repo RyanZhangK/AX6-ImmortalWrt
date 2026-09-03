@@ -1,0 +1,36 @@
+{
+	"admin/services/campnet/": {
+		"title": "校园网认证 CampNet",
+		"order": 90,
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-campnet" ]
+		}
+	},
+	"admin/services/campnet/overview": {
+		"title": "状态总览",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "campnet/overview"
+		}
+	},
+	"admin/services/campnet/settings": {
+		"title": "设置",
+		"order": 2,
+		"action": {
+			"type": "view",
+			"path": "campnet/settings"
+		}
+	},
+	"admin/services/campnet/log": {
+		"title": "日志",
+		"order": 3,
+		"action": {
+			"type": "view",
+			"path": "campnet/log"
+		}
+	}
+}

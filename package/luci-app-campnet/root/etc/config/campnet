@@ -1,0 +1,55 @@
+# luci-app-campnet 默认配置（非敏感项）
+# 帐密（学号/密码）不在本文件！见 /etc/campnet/.config（0600，main 用 [default] 分节）
+
+config settings 'settings'
+	# 总开关：0=停用（keeper 不保活、dial 不编排）
+	option enabled '1'
+	# 认证模式：ruijie(axe_bras webauth.do，默认) | eportal(Ruijie eportal) | auto(自动探测)
+	option auth_mode 'ruijie'
+	# 认证/验证网关（BRAS/Portal）：10.0.1.51
+	option gateway '10.0.1.51'
+	# 在线探针（返回 204 视为已认证）
+	option probe_url 'http://connect.rom.miui.com/generate_204'
+	# 保活周期（秒）
+	option check_interval '120'
+	# 登录重试
+	option max_retry '3'
+	option retry_delay '5'
+	# axe_bras 延迟拨号轮询
+	option poll_max '20'
+	option poll_interval '2'
+	# macvlan 基础设备（auto=自动取 wan 接口的内核设备）
+	option uplink 'auto'
+	# 服务启动时自动编排多播线路（幂等）
+	option dial_on_start '1'
+	# ruijie 模式表单参数（按学校实际情况修改）
+	option wlanacname 'BRAS'
+	option pageid '5'
+	option templatetype '1'
+	option vlan '0'
+	option auth_type '0'
+	# 可选：独立认证域名与服务器 IP（用于 --resolve 绕过 DNS；留空=直接使用 gateway）
+	# option auth_host 'auth.example.edu.cn'
+	# option server_ip '172.20.4.3'
+	option curl_connect_timeout '5'
+	option curl_timeout '12'
+
+# 主账号（macvlan 无关，直接使用校园网 WAN）
+config account 'main'
+	option enabled '1'
+	# 该账号使用的 uci network 接口
+	option iface 'wan'
+	# 是否为该账号建立独立 macvlan 通道（主账号一般 0）
+	option create_vlan '0'
+	option metric '10'
+	option weight '10'
+
+# 示例：加号带宽倍增（取消注释并补全，然后 LuCI/CLI 配置其帐密）
+# 每多一个 create_vlan=1 的账号 = 多一条独立通道 = 多线程场景带宽倍增
+#config account 'acc2'
+#	option enabled '1'
+#	option iface 'wan'
+#	option create_vlan '1'
+#	option metric '10'
+#	option weight '10'
+#	option macaddr ''    # 留空自动生成并固化

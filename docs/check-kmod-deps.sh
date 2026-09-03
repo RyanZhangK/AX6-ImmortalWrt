@@ -2,7 +2,7 @@
 # 检查 10 插件相关的内核依赖(kmod-*/iptables-mod-*)在 .config 中是否勾选
 cd "$(dirname "$0")/.." || exit 1
 
-pkgs="ua3f luci-app-openclash minieap luci-proto-minieap luci-theme-argon \
+pkgs="ua3f luci-app-openclash luci-app-campnet luci-theme-argon \
 luci-app-argon-config luci-app-upnp miniupnpd-nftables luci-app-turboacc \
 luci-app-ddns ddns-scripts luci-app-adguardhome adguardhome \
 luci-app-watchcat watchcat luci-app-docker dockerd \

@@ -163,7 +163,7 @@ jobs:
           body: |
             ## Redmi AX6 ImmortalWrt 固件（扩容 merged 分区布局）
             - rootfs 扩容至 118MB（rootfs 0x880000 起），需**不死 uboot** 引导
-            - 插件：UA3F / OpenClash / minieap(锐捷) / Argon / UPnP / Turbo ACC / DDNS / AdGuardHome / Watchcat / Docker(中文)
+            - 插件：UA3F / OpenClash / campnet(校园网自动认证+多账号多播) / Argon / UPnP / Turbo ACC / DDNS / AdGuardHome / Watchcat / Docker(中文)
             - 刷写：`sysupgrade.bin` 直接升级；`factory.ubi` 首次刷入；`initramfs` 用于救砖/不死uboot
             - 编译配置见仓库 `docs/ax6-config.seed`
           files: |

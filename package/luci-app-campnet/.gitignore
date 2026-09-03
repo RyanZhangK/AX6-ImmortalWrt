@@ -1,0 +1,35 @@
+# ============================================================
+# luci-app-campnet — Git 忽略规则
+# 原则：帐密（学号/密码）绝不允许进入 Git 仓库。
+# ============================================================
+
+# ---- 帐密与本地运行时配置 ----
+# 仓库根的本地运行时 .config（由 .config.example 生成，含默认学号密码）
+.config
+# 路由器侧生成的运行时帐密文件（若有人把它拷回仓库）
+root/etc/campnet/.config
+# dial.sh 生成的“已创建资源”登记文件
+root/etc/campnet/.created
+
+# ---- 日志与临时文件 ----
+*.log
+*.tmp
+*.bak
+*~
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ---- 构建产物 ----
+staging_dir/
+build_dir/
+dl/
+*.ipk
+*.apk
+*.a
+*.o

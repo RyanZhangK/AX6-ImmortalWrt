@@ -1,0 +1,61 @@
+#!/bin/sh /etc/rc.common
+# ============================================================
+# campnet —— 校园网认证 + 多播均衡 服务（procd 每账号一实例）
+# START 95：晚于 network/netifd，先编排多播线路再拉起 keeper
+# ============================================================
+
+START=95
+STOP=10
+USE_PROCD=1
+
+CAMP_LIB=/usr/libexec/campnet/lib.sh
+CAMP_BIN=/usr/libexec/campnet/campnet
+CAMP_DIAL=/usr/libexec/campnet/dial.sh
+CAMP_KEEPER=/usr/libexec/campnet/keeper.sh
+
+start_service() {
+	. "$CAMP_LIB" 2>/dev/null || { echo "无法加载 $CAMP_LIB" >&2; return 1; }
+	secret_seed
+	load_settings
+
+	if [ "$S_ENABLED" != "1" ]; then
+		log INFO "campnet 停用（uci campnet.settings.enabled=0）—— 不启动任何实例"
+		return 0
+	fi
+
+	# 多播线路编排（幂等；后台执行，避免拖慢开机 / 自触发 reload）
+	if [ "$S_DIAL_ON_START" = "1" ]; then
+		( "$CAMP_DIAL" setup >/dev/null 2>&1 & )
+	fi
+
+	local ids acc san
+	ids=$(camp_account_ids)
+	[ -n "$ids" ] || log WARN "未配置任何账号（uci campnet.account.*）"
+	for acc in $ids; do
+		[ "$(acct_enabled "$acc")" = "1" ] || continue
+		san=$(printf '%s' "$acc" | tr -c 'A-Za-z0-9_' '_')
+		procd_open_instance "keeper_${san}"
+		procd_set_param command /bin/sh "$CAMP_KEEPER" --account "$acc"
+		procd_set_param respawn 5 5 60
+		procd_set_param stdout 1
+		procd_set_param stderr 1
+		procd_close_instance
+		log INFO "已启动账号[$acc] 保活实例"
+	done
+	return 0
+}
+
+stop_service() {
+	# procd 负责终止各实例
+	return 0
+}
+
+reload_service() {
+	stop
+	start
+}
+
+service_triggers() {
+	# uci commit campnet 后自动 reload（settings/账号变更生效）
+	procd_add_reload_trigger campnet
+}
